@@ -1,6 +1,7 @@
 """
 Golden-set evaluation of the LangGraph agent.
-Run in Google Colab (T4 GPU recommended, CPU works, ~3-6 minutes):
+Run in Google Colab (T4 GPU recommended, ~3-6 minutes). Default model: Qwen2.5-1.5B-Instruct.
+To compare models:  MODEL_ID=Qwen/Qwen2.5-0.5B-Instruct python run_eval.py
     !pip install -q langgraph transformers accelerate pytest
     upload this folder (or git clone your repo), then:  !python run_eval.py
 Paste the RESULTS block back to Claude.
@@ -45,7 +46,7 @@ rows, t_all = [], time.perf_counter()
 for i, (req, gold) in enumerate(GOLDEN):
     t0 = time.perf_counter()
     state, paused = run(graph, req, thread_id=f"t{i}")
-    rows.append({"ok": state["intent"] == gold, "paused": paused, "e2e_ms": (time.perf_counter() - t0) * 1000,
+    rows.append({"gold": gold, "pred": state["intent"], "ok": state["intent"] == gold, "paused": paused, "e2e_ms": (time.perf_counter() - t0) * 1000,
                  "tokens": state["usage"]["prompt_tokens"] + state["usage"]["completion_tokens"],
                  "fallback": state["usage"]["fallback"], "audit_steps": len(state["audit"]),
                  "has_response": bool(state.get("response"))})
@@ -54,8 +55,15 @@ acc = sum(r["ok"] for r in rows) / n
 tok = sum(r["tokens"] for r in rows)
 print("\n================ RESULTS ================")
 print(f"Model: {llm.name} | Golden set: {n} labeled requests across 4 intents | Graph nodes: 7 (incl. human review)")
-print(f"Intent routing accuracy: {acc:.1%} | Invalid LLM outputs caught by fallback guardrail: {sum(r['fallback'] for r in rows)}")
+print(f"Intent routing accuracy: {acc:.1%} (constrained label scoring - output is always a valid label)")
 print(f"Escalated to human review: {sum(r['paused'] for r in rows)} of {n} | Every run completed with a response: {all(r['has_response'] for r in rows)}")
+for lab in ["duplicate_invoices", "access_anomalies", "policy_question", "other"]:
+    sub = [r for r in rows if r["gold"] == lab]
+    wrong = {}
+    for r in sub:
+        if not r["ok"]:
+            wrong[r["pred"]] = wrong.get(r["pred"], 0) + 1
+    print(f"  {lab:<20} {sum(r['ok'] for r in sub)}/{len(sub)} correct" + (f"  (misrouted to: {wrong})" if wrong else ""))
 print(f"Audit trail: {statistics.mean(r['audit_steps'] for r in rows):.1f} logged steps per request")
 print(f"Latency end-to-end: median {statistics.median(r['e2e_ms'] for r in rows):.0f} ms | total tokens {tok:,} "
       f"({tok / n:.0f} per request; est. cost ${tok / 1e6 * 0.15:.4f} for all {n} at $0.15 per 1M tokens)")

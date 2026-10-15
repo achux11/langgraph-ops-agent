@@ -15,7 +15,7 @@
 
 ```mermaid
 flowchart LR
-    A[Request] --> B[classify<br/>LLM: Qwen2.5-0.5B]
+    A[Request] --> B[classify<br/>LLM: Qwen2.5-1.5B]
     B -->|duplicate_invoices| C[Duplicate-invoice tool]
     B -->|access_anomalies| D[Access-anomaly tool]
     B -->|policy_question| E[Policy lookup tool]
@@ -34,14 +34,14 @@ flowchart LR
 | **State graph** | 7 nodes with conditional routing (`StateGraph`) |
 | **Human-in-the-loop** | `interrupt_before=["human_review"]` with a `MemorySaver` checkpointer. The run pauses, a person approves or denies, and the run resumes |
 | **Tool calling** | Deterministic Python tools that never change the source data |
-| **Guardrails** | An invalid LLM output falls back to a safe classifier. Out-of-scope requests, unknown policies, high dollar exposure and any access anomaly all go to a human |
+| **Guardrails** | **Constrained label scoring**: the LLM rates only the 4 allowed labels, so it can never return an invalid route. Out-of-scope requests, unknown policies, high dollar exposure and any access anomaly all go to a human |
 | **Traceability** | Every node appends `{step, detail, timestamp}` to the state's audit trail |
 
 ---
 
 ## Results
 
-Results from `run_eval.py` on a **60-request hand-labeled golden set** (4 intents, 15 each):
+Results from `run_eval.py` on a **60-request hand-labeled golden set** (4 intents, 15 each), with a per-intent breakdown:
 
 | Metric | Value |
 |---|---|
@@ -101,7 +101,7 @@ python run_eval.py          # real LLM evaluation (GPU recommended, e.g. Google 
 
 ```
 agent.py        LangGraph state graph, risk gate, human-in-the-loop, audit trail
-llm.py          Qwen2.5-0.5B-Instruct classifier + fallback guardrail + fake LLM for tests
+llm.py          Qwen2.5 classifier with constrained label scoring + fake LLM for tests
 tools.py        Duplicate invoices, access anomalies, policy lookup
 data.py         Synthetic invoices, access logs, policies (no real data)
 run_eval.py     60-case golden-set evaluation
@@ -110,7 +110,7 @@ tests/          Unit + integration tests
 ```
 
 ## Design choices
-- **Small open model:** a 0.5B model runs on a free GPU, so there are no API costs and no data leaves the machine. The fallback guardrail covers its mistakes.
+- **Small open model, scored instead of generated:** Qwen2.5-1.5B runs on a free GPU, so there are no API costs and no data leaves the machine. In a first version the 0.5B model *generated* labels and reached only 51.7% routing accuracy. Switching to constrained label scoring (rank the 4 allowed labels by log-probability) fixed the failure mode.
 - **Deterministic tools:** the LLM only decides which tool to run. Numbers come from code, not generated text, which removes hallucination risk for facts.
 - **Pause before acting:** risky actions need a recorded human decision, which suits regulated and finance workflows.
 
