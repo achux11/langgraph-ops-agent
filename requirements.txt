@@ -1,0 +1,5 @@
+langgraph>=0.2
+transformers>=4.45
+accelerate
+torch
+pytest
