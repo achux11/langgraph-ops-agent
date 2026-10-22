@@ -1,6 +1,6 @@
 """Quick demo: run 3 requests through the agent and print the decision trail.
     FAKE_LLM=1 python demo.py      # instant, no model download
-    python demo.py                 # real Qwen2.5-0.5B-Instruct (Colab)
+    python demo.py                 # real Qwen2.5-1.5B-Instruct (Colab)
 """
 from agent import build_graph, run
 from llm import get_llm

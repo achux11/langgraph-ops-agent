@@ -97,6 +97,9 @@ FAKE_LLM=1 python demo.py   # instant demo
 python run_eval.py          # real LLM evaluation (GPU recommended, e.g. Google Colab T4)
 ```
 
+## Operating it
+See **[RUNBOOK.md](RUNBOOK.md)** for what a healthy run looks like, why requests escalate, how to resume a paused run, common failures, and a safe change checklist.
+
 ## Project structure
 
 ```
@@ -106,6 +109,7 @@ tools.py        Duplicate invoices, access anomalies, policy lookup
 data.py         Synthetic invoices, access logs, policies (no real data)
 run_eval.py     60-case golden-set evaluation
 demo.py         3-request walkthrough with decision trail
+RUNBOOK.md      Operating guide: escalations, paused runs, failures, safe changes
 tests/          Unit + integration tests
 ```
 
